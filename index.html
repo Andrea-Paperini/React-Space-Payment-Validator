@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pagamenti Card</title>
+    <!-- Includo babel per permettere la lettura dei file jsx di react che li converte in js puro per visualizzarli dal browser senza dover fare installazioni -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- React e ReactDOM tramite CDN -->
+    <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+    <!-- axios -->
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <!-- bootstrap -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <!-- codice css -->
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: black;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #container {
+            text-align: center;
+        }
+        
+        form {
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            max-width: 400px;
+            background: #0c1446;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: white;
+            font-weight: bold;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 16px;
+            box-sizing: border-box;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            background: white;
+            color: black;
+            font-weight: bold;
+        }
+
+        input[type="submit"] {
+            background: linear-gradient(to bottom, #f1c40f, #f39c12);
+            cursor: pointer;
+            border: none;
+            border-radius: 4px;
+            padding: 12px 20px;
+        }
+
+        input[type="submit"]:hover {
+            background: linear-gradient(to bottom, #f4d12a, #f7b418);
+        }
+
+        input[type="submit"]:disabled {
+            background: #cccccc;
+            color: #666666;
+            cursor: not-allowed;
+        }
+
+        .star {
+            position: absolute;
+            background-color: #fff;
+            width: 2px;
+            height: 2px;
+            border-radius: 50%;
+            opacity: 0.8;
+            box-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px #fff, 0 0 40px #fff, 0 0 50px #fff, 0 0 60px #fff, 0 0 70px #fff, 0 0 80px #fff;
+        }
+
+        .title {
+            font-weight: 700;
+            font-size: 50px;
+            color: white;
+        }
+
+        .error-message {
+            color: #dc3545;
+            margin-top: 5px;
+            font-weight: bold;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .container {
+            margin-top: 80px;
+        }
+
+        .moon {
+            position: absolute;
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            background: radial-gradient(circle, #f7f7f7 0%, #c0c0c0 100%);
+            top: 50px;
+            left: 50px;
+            transform: scale(0.8);
+            z-index: 1;
+            box-shadow: 0 0 50px rgba(255, 255, 255, 0.5);
+        }
+
+        .crater {
+            position: absolute;
+            background-color: #888;
+            border-radius: 50%;
+        }
+
+        .crater1 { width: 20px; height: 20px; top: 40px; left: 80px; }
+        .crater2 { width: 25px; height: 25px; top: 80px; left: 30px; }
+        .crater3 { width: 30px; height: 30px; top: 100px; left: 100px; }
+        .crater4 { width: 15px; height: 15px; top: 140px; left: 140px; }
+
+        @media (max-width: 768px) {
+            .container { margin-top: 80px; }
+            .moon {
+                width: 100px;
+                height: 100px;
+                left: 0;
+                top: 0;
+                transform: scale(0.6);
+            }
+            .crater { width: 10px; height: 10px; }
+            .crater1 { top: 20px; left: 40px; }
+            .crater2 { top: 40px; left: 15px; }
+            .crater3 { top: 50px; left: 50px; }
+            .crater4 { top: 70px; left: 70px; }
+        }
+
+        #captchaImage {
+            max-width: 300px;
+            height: auto;
+            border-radius: 4px; 
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="text/babel">
+    function Moon(){
+        return(
+            <div className="moon">
+            <div className="crater crater1"></div>
+            <div className="crater crater2"></div>
+            <div className="crater crater3"></div>
+            <div className="crater crater4"></div>
+            </div>
+        )
+    }
+    function Container({ validateCodice, readRules }) {
+        // useState è un hook di React che ci permette di gestire lo stato del componente
+        const [showConfirmation, setShowConfirmation] = React.useState(false); // visibilità del modal di conferma
+        const [showErrorModal, setShowErrorModal] = React.useState(false);     // visibilità del modal di errore
+        const [selectedTipologia, setSelectedTipologia] = React.useState('');  // tipologia selezionata
+        const [errorModalMessage, setErrorModalMessage] = React.useState('err1'); // Messaggio di errore da mostrare
+
+        // Funzioni per gestire i modal
+        const closeModal = () => {
+            setShowConfirmation(false);
+        };
+
+        const closeModalError = () => {
+            setShowErrorModal(false);
+        };
+
+        // Funzione che viene chiamata quando l'utente cambia la tipologia nel select
+        const handleTipologiaChange = (event) => {
+            setSelectedTipologia(event.target.value);
+        };
+
+        // Trova la regola corrispondente alla tipologia selezionata
+        const selectedRule = readRules.find(rule => rule.tipologia === selectedTipologia);
+
+        return (
+            <div className="container" id="container">
+            <h1 className="title">Pagamenti</h1>
+            <form action="" method="post" onSubmit={(event) => validateCodice(event, selectedTipologia, selectedRule.lunghezza_minima, selectedRule.lunghezza_massima, setShowConfirmation, setShowErrorModal, setErrorModalMessage)}>
+            <label htmlFor="username">Username:</label>
+            <input type="text" name="username" id="username" required />
+            <label htmlFor="prodotto">Prodotto e quantità:</label>
+            <input type="text" name="prodotto" id="prodotto" required />
+            <label htmlFor="tipologia">Tipologia:</label>
+            <select id="tipologia" name="tipologia" required onChange={handleTipologiaChange}>
+            <option value="">Seleziona una tipologia</option>
+            {readRules.map(rule => (
+                <option key={rule.id} value={rule.tipologia}>{rule.tipologia}</option>
+            ))}
+            </select>
+            <label htmlFor="codice">Codice alfanumerico:</label>
+            <input type="text" id="codice" name="codice" required />
+            <div id="error-message" className="error-message"></div>
+            <label>Captcha:</label>
+            <p><img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQx8PJ4WrM05hQh5Q3IiNtVQqD-PY93RmnXGw&s" id="captchaImage" alt="Captcha" /></p>
+            <input type="text" name="cap" required />
+            <input type="submit" value="Invia" disabled={!selectedTipologia} />
+            </form>
+            {/* Utilizziamo il modal di Bootstrap per il popup di conferma */}
+            <Modal show={showConfirmation} onClose={closeModal} />
+            <ModalError show={showErrorModal} onClose={closeModalError} errorModalMessage={errorModalMessage} />
+            </div>
+        );
+    }
+
+    // modal di successo
+    function Modal({ show, onClose }) {
+        return (
+            <div className="modal" id="confirmationModal" tabIndex="-1" role="dialog" style={{ display: show ? 'block' : 'none' }}>
+            <div className="modal-dialog" role="document">
+            <div className="modal-content">
+            <div className="modal-header">
+            <h5 className="modal-title">Pagamento inviato con successo!</h5>
+            <button type="button" className="close" data-dismiss="modal" aria-label="Close" onClick={onClose}>
+            <span aria-hidden="true">&times;</span>
+            </button>
+            </div>
+            <div className="modal-body">
+            Verrai contattato il prima possibile
+            </div>
+            <div className="modal-footer">
+            <button type="button" className="btn btn-secondary text-white" data-dismiss="modal" onClick={onClose}>Chiudi</button>
+            </div>
+            </div>
+            </div>
+            </div>
+        );
+    }
+
+    // modal di errore
+    function ModalError({ show, onClose, errorModalMessage }) {
+        return (
+            <div className="modal" id="errorModal" tabIndex="-1" role="dialog" style={{ display: show ? 'block' : 'none' }}>
+            <div className="modal-dialog" role="document">
+            <div className="modal-content">
+            <div className="modal-header">
+            <h5 className="modal-title">Errore!</h5>
+            <button type="button" className="close" data-dismiss="modal" aria-label="Close" onClick={onClose}>
+            <span aria-hidden="true">&times;</span>
+            </button>
+            </div>
+            <div className="modal-body">
+            {errorModalMessage}
+            </div>
+            <div className="modal-footer">
+            <button type="button" className="btn btn-secondary text-white" data-dismiss="modal" onClick={onClose}>Chiudi</button>
+            </div>
+            </div>
+            </div>
+            </div>
+        );
+    }
+
+
+    // Funzione per generare stelle casuali
+    function Star() {
+        function generateStars() {
+            // Genera 100 stelle con posizioni casuali
+            const stars = [];
+            const numStars = 100;
+            const width = window.innerWidth - 5;
+            const height = window.innerHeight - 5;
+
+            for (let i = 0; i < numStars; i++) {
+                // Genera coordinate casuali all'interno del viewport
+                const left = Math.random() * width;
+                const top = Math.random() * height;
+
+                // Controlla che le stelle siano visibili all'interno del viewport
+                if (left >= 0 && left <= width && top >= 0 && top <= height) {
+                    stars.push(<div key={i} className="star" style={{ left: `${left}px`, top: `${top}px` }}></div>);
+                }
+            }
+
+            return stars;
+        }
+
+        return (
+            <div>
+            {generateStars()}
+            </div>
+        );
+    }
+
+    function App() {
+        const [readRules, setReadRules] = React.useState([]);
+
+        React.useEffect(() => {
+            // Per questa demo definisco le regole staticamente invece di caricarle dinamicamente dal db
+            const staticRules = {
+                rules: [
+                    {
+                        id: 1,
+                        tipologia: "Amazon",
+                        lunghezza_minima: 14,
+                        lunghezza_massima: 16
+                    },
+                    {
+                        id: 2,
+                        tipologia: "Steam",
+                        lunghezza_minima: 15,
+                        lunghezza_massima: 17
+                    },
+                    {
+                        id: 3,
+                        tipologia: "PlayStation",
+                        lunghezza_minima: 12,
+                        lunghezza_massima: 14
+                    }
+                ]
+            };
+            
+            setReadRules(staticRules.rules);
+        }, []);
+
+        // Funzione di validazione del codice
+        const validateCodice = (event, tipologia, lunghezzaMinima, lunghezzaMassima, setShowConfirmation, setShowErrorModal, setErrorModalMessage) => {
+            event.preventDefault();
+            
+            const codiceValue = event.target.elements.codice.value;
+            const usernameValue = event.target.elements.username.value;
+            const tipologiaValue = event.target.elements.tipologia.value;
+            const prodottoValue = event.target.elements.prodotto.value;
+
+            let codiceCleaned = codiceValue.replace(/-/g, "");
+            let errorMessage = '';
+
+            if (!/[a-zA-Z]/.test(codiceCleaned)) {
+                errorMessage = `Il codice non è valido.`;
+            }
+            if (codiceCleaned.length < lunghezzaMinima || codiceCleaned.length > lunghezzaMassima || !/^[a-zA-Z0-9]+$/.test(codiceCleaned)) {
+                errorMessage = `Il codice per ${tipologia} deve contenere tra ${lunghezzaMinima} e ${lunghezzaMassima} caratteri alfanumerici.`;
+            }
+            if (prodottoValue.length < 2) {
+                errorMessage = 'inserisci il prodotto e la sua quantità';
+            }
+
+            const errorElement = document.getElementById("error-message");
+            errorElement.textContent = errorMessage;
+
+            if (!errorMessage) {
+                // Simulo una risposta di successo
+                setTimeout(() => {
+                    setShowConfirmation(true);
+                }, 500);
+            }
+        };
+
+        return (
+            <>
+            <Container validateCodice={validateCodice} readRules={readRules} />
+            <Star />
+            <Moon />
+            </>
+        )
+    }
+
+    const AppElement = React.createElement(App);
+    const rootElement = document.getElementById('root');
+    ReactDOM.render(AppElement, rootElement);
+    </script>
+</body>
+</html>
